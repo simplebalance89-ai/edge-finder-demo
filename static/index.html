@@ -420,6 +420,57 @@
         margin-left: 16px;
     }
 
+    /* ===== RERUN SLATE BUTTON ===== */
+    .rerun-wrap {
+        width: 100%;
+        max-width: 700px;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    .rerun-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 14px 36px;
+        border-radius: 28px;
+        border: 2px solid #10B981;
+        background: rgba(16, 185, 129, 0.1);
+        color: #10B981;
+        font-family: 'Nunito', sans-serif;
+        font-size: 1rem;
+        font-weight: 800;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        letter-spacing: 0.5px;
+    }
+    .rerun-btn:hover {
+        background: rgba(16, 185, 129, 0.2);
+        box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
+        transform: scale(1.04);
+    }
+    .rerun-btn.analyzing {
+        pointer-events: none;
+        opacity: 0.7;
+    }
+    .rerun-btn .rerun-icon {
+        display: inline-block;
+        font-size: 1.2rem;
+        transition: transform 0.3s ease;
+    }
+    .rerun-btn.analyzing .rerun-icon {
+        animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    .rerun-schedule {
+        font-size: 0.68rem;
+        color: #8A7A5A;
+        margin-top: 8px;
+        letter-spacing: 0.5px;
+    }
+
     .prompt-buttons {
         display: flex;
         flex-wrap: wrap;
@@ -722,6 +773,12 @@
             <h2 id="analysisTitle">Edge Analysis</h2>
             <p>AI-generated breakdown. Demo data.</p>
         </div>
+        <div class="rerun-wrap">
+            <button class="rerun-btn" id="rerunBtn" onclick="rerunSlate()">
+                <span class="rerun-icon">&#x21BB;</span> Rerun Slate
+            </button>
+            <div class="rerun-schedule">Auto-runs: 3 PM PST (Full Slate) | 6:30 PM PST (Late Slate)</div>
+        </div>
         <div class="analysis-section" id="analysisContent">
             <!-- Filled by JS -->
         </div>
@@ -1009,9 +1066,175 @@ const passCard = {
     rec: 'NO BET. No edge at this price. Move on.'
 };
 
+/* ===== ALTERNATE ANALYSIS DATA FOR RERUN ===== */
+const analysesAlt = {
+    nfl: {
+        title: 'NFL Edge Analysis',
+        cards: [
+            {
+                matchup: 'LIONS -3 vs 49ERS',
+                line: 'Opened: -1.5 | Now: -3 (sharp action on DET)',
+                wrong: [
+                    '49ers missing two starting O-linemen, interior pressure kills their RPO game',
+                    'Lions 8-2 ATS at home this season, crowd factor undervalued',
+                    'SF defense allowing 5.1 YPC on the road, Lions run game feasts'
+                ],
+                right: [
+                    'Purdy has a 108.3 passer rating in domes this year',
+                    'Line movement suggests sharp money already priced in'
+                ],
+                grade: 'A-',
+                gradeClass: 'grade-a',
+                rec: 'One unit. Sharp-backed home favorite with a matchup edge.'
+            }
+        ]
+    },
+    cfb: {
+        title: 'CFB Edge Analysis',
+        cards: [
+            {
+                matchup: 'OREGON +3 vs OHIO STATE',
+                line: 'Opened: +1.5 | Now: +3 (public hammering OSU)',
+                wrong: [
+                    'Oregon has won 5 straight vs top-10 teams ATS',
+                    'Public inflating OSU by 1.5 pts, classic brand bias',
+                    'Oregon QB 72% completion on 3rd down conversions'
+                ],
+                right: [
+                    'Ohio State pass rush averaging 4.2 sacks in big games',
+                    'Oregon turnover-prone on the road (1.8 TOs per game away)'
+                ],
+                grade: 'A',
+                gradeClass: 'grade-a',
+                rec: 'Full unit. Classic public overreaction on brand name.'
+            }
+        ]
+    },
+    nba: {
+        title: 'NBA Edge Analysis',
+        cards: [
+            {
+                matchup: 'CELTICS -7 vs NETS',
+                line: 'Opened: -8.5 | Now: -7 (reverse line movement)',
+                wrong: [
+                    'Reverse line movement: 78% public on BOS, line dropped 1.5 pts',
+                    'Sharp money on Nets suggests closer game than public thinks',
+                    'Nets 5-2 ATS as 7+ point dogs this month'
+                ],
+                right: [
+                    'Celtics at full strength, Tatum averaging 34 PPG at home',
+                    'Nets bottom-5 in defensive rating'
+                ],
+                grade: 'B',
+                gradeClass: 'grade-b',
+                rec: 'Lean Nets +7 but half unit max. Reverse movement is real.'
+            }
+        ]
+    },
+    nhl: {
+        title: 'NHL Edge Analysis',
+        cards: [
+            {
+                matchup: 'OILERS ML vs CANUCKS (-125)',
+                line: 'Opened: -110 | Now: -125 (McDavid line confirmed)',
+                wrong: [
+                    'McDavid has 12 points in last 6 games vs Vancouver',
+                    'Canucks backup goalie starting, .891 save% this season',
+                    'Edmonton PP converting at 32% over last 15 games'
+                ],
+                right: [
+                    'Canucks are 6-2 at home in their last 8',
+                    'Edmonton on second game in 3 nights, travel fatigue'
+                ],
+                grade: 'B+',
+                gradeClass: 'grade-b',
+                rec: 'ML at -125 is value with the goalie mismatch. One unit.'
+            }
+        ]
+    },
+    boxing: {
+        title: 'Boxing/MMA Edge Analysis',
+        cards: [
+            {
+                matchup: 'FIGHTER X (+200) vs FIGHTER Y (-250)',
+                line: 'Opened: +180 | Now: +200 (money on favorite)',
+                wrong: [
+                    'Fighter X has a 89% takedown accuracy, Y has never faced an elite wrestler',
+                    'Fighter Y has been dropped in 3 of last 5 fights, chin suspect',
+                    'Fighter X camp switched to a wrestling-heavy gameplan'
+                ],
+                right: [
+                    'Fighter Y has 4-inch reach advantage and elite striking volume',
+                    'Fighter X gasses after round 3 historically'
+                ],
+                grade: 'A',
+                gradeClass: 'grade-a',
+                rec: 'Fighter X at +200 is a gift. Stylistic nightmare for the favorite.'
+            }
+        ]
+    },
+    props: {
+        title: 'Player Props Analysis',
+        cards: [
+            {
+                matchup: 'SHAI OVER 31.5 POINTS',
+                line: 'Line: 31.5 | Juice: -110',
+                wrong: [
+                    'Facing Wizards, dead last in perimeter defense',
+                    'SGA averaging 36.4 PPG vs bottom-5 defenses this season',
+                    'Cushion: 4.9 points over the line in this matchup tier'
+                ],
+                right: [
+                    'OKC may rest starters in Q4 if blowout',
+                ],
+                grade: 'A+',
+                gradeClass: 'grade-a',
+                rec: 'LOCK IT. Elite matchup. Massive cushion over the line.'
+            }
+        ]
+    }
+};
+
+const passCardAlt = {
+    matchup: 'RAVENS -380 ML',
+    line: '',
+    redFlag: true,
+    flags: [
+        'Laying -380 means you need 79% win rate to profit',
+        'Ravens have lost 3 games as 300+ favorites this season',
+        'One turnover and you lose 3.8 units for a 1-unit gain'
+    ],
+    grade: 'F',
+    gradeClass: 'grade-f',
+    rec: 'NO BET. Terrible price. Find value elsewhere.'
+};
+
+let useAltData = false;
+
+function rerunSlate() {
+    const btn = document.getElementById('rerunBtn');
+    const container = document.getElementById('analysisContent');
+
+    btn.classList.add('analyzing');
+    btn.querySelector('.rerun-icon').textContent = '\u21BB';
+
+    // Fade out cards
+    container.style.opacity = '0.3';
+    container.style.transition = 'opacity 0.3s ease';
+
+    setTimeout(() => {
+        useAltData = !useAltData;
+        renderAnalysis();
+        container.style.opacity = '1';
+        btn.classList.remove('analyzing');
+    }, 1500);
+}
+
 function renderAnalysis() {
     const sport = selectedSport || 'nfl';
-    const data = analyses[sport];
+    const dataSource = useAltData ? analysesAlt : analyses;
+    const passSource = useAltData ? passCardAlt : passCard;
+    const data = dataSource[sport];
     const container = document.getElementById('analysisContent');
     document.getElementById('analysisTitle').textContent = data.title;
 
@@ -1036,12 +1259,12 @@ function renderAnalysis() {
     // Pass card
     html += `
     <div class="analysis-card pass-card">
-        <div class="analysis-matchup">${passCard.matchup}</div>
+        <div class="analysis-matchup">${passSource.matchup}</div>
         <div class="analysis-heading red-flag">RED FLAG &#x2014; STOP</div>
-        ${passCard.flags.map(b => `<div class="analysis-bullet">${b}</div>`).join('')}
+        ${passSource.flags.map(b => `<div class="analysis-bullet">${b}</div>`).join('')}
         <div class="analysis-footer">
-            <div class="grade-badge ${passCard.gradeClass}">${passCard.grade}</div>
-            <div class="analysis-rec">${passCard.rec}</div>
+            <div class="grade-badge ${passSource.gradeClass}">${passSource.grade}</div>
+            <div class="analysis-rec">${passSource.rec}</div>
         </div>
     </div>`;
 
