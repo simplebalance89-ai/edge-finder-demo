@@ -14,27 +14,38 @@ import json
 # --- Page Config ---
 st.set_page_config(
     page_title="Edge Finder v4",
-    page_icon="EF",
+    page_icon="assets/edge-finder-icon.png",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# --- Session State Init ---
-if "bankroll" not in st.session_state:
-    st.session_state.bankroll = {
-        "balance": 1000.00,
-        "starting": 1000.00,
-        "daily_risk": 0.00,
-        "pending": 0.00,
+# --- Profile Definitions ---
+PROFILE_CONFIG = {
+    "Peter": {"label": "Peter's Edge Finder", "color": "#D4A017"},
+    "Chinny": {"label": "Chinny's Corner", "color": "#3b82f6"},
+    "Sinton.ia": {"label": "Sinton.ia Picks", "color": "#22c55e"},
+}
+
+def _default_profile_data():
+    return {
+        "bankroll": {"balance": 0.00, "starting": 0.00, "daily_risk": 0.00, "pending": 0.00},
+        "bet_log": [],
+        "parlay_legs": [],
+        "chat_messages": [],
     }
-if "parlay_legs" not in st.session_state:
-    st.session_state.parlay_legs = []
-if "bet_log" not in st.session_state:
-    st.session_state.bet_log = []
-if "chat_messages" not in st.session_state:
-    st.session_state.chat_messages = []
+
+# --- Session State Init ---
+if "active_profile" not in st.session_state:
+    st.session_state.active_profile = "Peter"
+if "profiles" not in st.session_state:
+    st.session_state.profiles = {name: _default_profile_data() for name in PROFILE_CONFIG}
 if "selected_game" not in st.session_state:
     st.session_state.selected_game = None
+
+# --- Active Profile Helpers ---
+def _p():
+    """Return current profile data dict."""
+    return st.session_state.profiles[st.session_state.active_profile]
 
 
 # --- API Check ---
@@ -150,16 +161,16 @@ DEMO_BET_LOG = [
      "result": "L", "payout": 0, "edge_real": False, "notes": "No real edge. Should have passed. Grade C = pass."},
 ]
 
-EDGE_COLORS = {"A": "#22c55e", "B+": "#3b82f6", "B": "#3b82f6", "B-": "#3b82f6",
+EDGE_COLORS = {"A": "#22c55e", "B+": "#10B981", "B": "#10B981", "B-": "#10B981",
                "C": "#eab308", "D": "#f97316", "F": "#ef4444"}
 
-EDGE_BG = {"A": "rgba(34,197,94,0.15)", "B+": "rgba(59,130,246,0.15)", "B": "rgba(59,130,246,0.15)",
-           "B-": "rgba(59,130,246,0.15)", "C": "rgba(234,179,8,0.15)", "D": "rgba(249,115,22,0.15)",
+EDGE_BG = {"A": "rgba(34,197,94,0.15)", "B+": "rgba(16,185,129,0.15)", "B": "rgba(16,185,129,0.15)",
+           "B-": "rgba(16,185,129,0.15)", "C": "rgba(234,179,8,0.15)", "D": "rgba(249,115,22,0.15)",
            "F": "rgba(239,68,68,0.15)"}
 
 
 def edge_badge(grade):
-    color = EDGE_COLORS.get(grade, "#6b7280")
+    color = EDGE_COLORS.get(grade, "#4A5A5A")
     bg = EDGE_BG.get(grade, "rgba(107,114,128,0.15)")
     return f'<span style="background:{bg};color:{color};padding:4px 12px;border-radius:6px;font-weight:700;font-size:14px;border:1px solid {color}40;">{grade}</span>'
 
@@ -179,66 +190,66 @@ def get_games(sport):
 # --- Custom CSS ---
 st.markdown("""
 <style>
-    .stApp { background-color: #0a0a1a; }
+    .stApp { background-color: #0B0F0F; }
     .main-header {
-        background: linear-gradient(135deg, #0d0d1e 0%, #1a1428 50%, #2a1a0a 100%);
+        background: linear-gradient(135deg, #0E1212 0%, #0F1A18 50%, #0B2018 100%);
         padding: 20px 28px; border-radius: 12px; margin-bottom: 8px;
-        border: 1px solid #3a2a0a;
+        border: 1px solid #1E3A2E;
     }
     .main-header h1 { color: #ffffff; font-size: 28px; margin: 0; font-weight: 700; letter-spacing: -0.5px; }
-    .main-header .subtitle { color: #D4A017; font-size: 13px; margin: 4px 0 0 0; font-weight: 500; }
-    .main-header .version { color: #8890b0; font-size: 11px; margin: 2px 0 0 0; }
+    .main-header .subtitle { color: #10B981; font-size: 13px; margin: 4px 0 0 0; font-weight: 500; }
+    .main-header .version { color: #6B8080; font-size: 11px; margin: 2px 0 0 0; }
     .status-bar {
-        background-color: #0d0d1e; border: 1px solid #2a2a3a; border-radius: 8px;
+        background-color: #0E1212; border: 1px solid #1E2E2E; border-radius: 8px;
         padding: 8px 16px; margin-bottom: 12px; display: flex; gap: 20px; align-items: center;
     }
     .status-item { font-size: 12px; display: inline-flex; align-items: center; gap: 6px; }
     .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
     .status-on { background-color: #22c55e; }
     .status-off { background-color: #ef4444; }
-    .status-label { color: #8890b0; }
-    .stTabs [data-baseweb="tab-list"] { gap: 0px; background-color: #0d0d1e; border-radius: 8px; padding: 4px; }
-    .stTabs [data-baseweb="tab"] { color: #8890b0; background-color: transparent; border-radius: 6px; padding: 8px 16px; font-size: 13px; }
-    .stTabs [aria-selected="true"] { color: #D4A017 !important; background-color: #1a1428 !important; }
-    [data-testid="stExpander"] { background-color: #141420; border: 1px solid #2a2a3a; border-radius: 8px; }
-    .stChatMessage { background-color: #141420 !important; border: 1px solid #2a2a3a !important; border-radius: 8px !important; }
+    .status-label { color: #6B8080; }
+    .stTabs [data-baseweb="tab-list"] { gap: 0px; background-color: #0E1212; border-radius: 8px; padding: 4px; }
+    .stTabs [data-baseweb="tab"] { color: #6B8080; background-color: transparent; border-radius: 6px; padding: 8px 16px; font-size: 13px; }
+    .stTabs [aria-selected="true"] { color: #10B981 !important; background-color: #162020 !important; }
+    [data-testid="stExpander"] { background-color: #121A1A; border: 1px solid #1E2E2E; border-radius: 8px; }
+    .stChatMessage { background-color: #121A1A !important; border: 1px solid #1E2E2E !important; border-radius: 8px !important; }
     .stChatMessage p, .stChatMessage span, .stChatMessage li, .stChatMessage td { color: #e2e8f0 !important; }
-    .stChatMessage h1, .stChatMessage h2, .stChatMessage h3, .stChatMessage h4 { color: #D4A017 !important; }
-    .stChatMessage strong { color: #D4A017 !important; }
-    .stChatMessage code { color: #D4A017 !important; background-color: #1e1e30 !important; padding: 2px 6px !important; border-radius: 4px !important; }
-    .stChatMessage pre { background-color: #0d0d1e !important; border: 1px solid #2a2a3a !important; border-radius: 6px !important; }
+    .stChatMessage h1, .stChatMessage h2, .stChatMessage h3, .stChatMessage h4 { color: #10B981 !important; }
+    .stChatMessage strong { color: #10B981 !important; }
+    .stChatMessage code { color: #10B981 !important; background-color: #162020 !important; padding: 2px 6px !important; border-radius: 4px !important; }
+    .stChatMessage pre { background-color: #0E1212 !important; border: 1px solid #1E2E2E !important; border-radius: 6px !important; }
     .stChatMessage pre code { color: #e2e8f0 !important; background-color: transparent !important; }
-    .stChatMessage table th { background-color: #1a1428 !important; color: #D4A017 !important; padding: 8px 12px !important; }
-    .stChatMessage table td { padding: 6px 12px !important; border-bottom: 1px solid #2a2a3a !important; color: #e2e8f0 !important; }
-    div[data-testid="stChatInput"] textarea { background-color: #141420 !important; border: 1px solid #2a2a3a !important; color: #e2e8f0 !important; }
-    .stButton button { background-color: #1a1428 !important; color: #D4A017 !important; border: 1px solid #3a2a0a !important; }
-    .stButton button:hover { background-color: #2a1a0a !important; color: #ffffff !important; }
-    [data-testid="stMetric"] { background-color: #141420; border: 1px solid #2a2a3a; border-radius: 8px; padding: 12px; }
-    [data-testid="stMetricLabel"] { color: #8890b0 !important; }
-    [data-testid="stMetricValue"] { color: #D4A017 !important; }
-    .stProgress > div > div { background-color: #D4A017 !important; }
+    .stChatMessage table th { background-color: #162020 !important; color: #10B981 !important; padding: 8px 12px !important; }
+    .stChatMessage table td { padding: 6px 12px !important; border-bottom: 1px solid #1E2E2E !important; color: #e2e8f0 !important; }
+    div[data-testid="stChatInput"] textarea { background-color: #121A1A !important; border: 1px solid #1E2E2E !important; color: #e2e8f0 !important; }
+    .stButton button { background-color: #162020 !important; color: #10B981 !important; border: 1px solid #1E3A2E !important; }
+    .stButton button:hover { background-color: #1A2E22 !important; color: #ffffff !important; }
+    [data-testid="stMetric"] { background-color: #121A1A; border: 1px solid #1E2E2E; border-radius: 8px; padding: 12px; }
+    [data-testid="stMetricLabel"] { color: #6B8080 !important; }
+    [data-testid="stMetricValue"] { color: #10B981 !important; }
+    .stProgress > div > div { background-color: #10B981 !important; }
     .game-card {
-        background: #141420; border: 1px solid #2a2a3a; border-radius: 10px;
+        background: #121A1A; border: 1px solid #1E2E2E; border-radius: 10px;
         padding: 16px; margin-bottom: 10px; transition: border-color 0.2s;
     }
-    .game-card:hover { border-color: #D4A017; }
+    .game-card:hover { border-color: #10B981; }
     .game-card .teams { font-size: 16px; font-weight: 600; color: #e2e8f0; margin-bottom: 8px; }
-    .game-card .odds-row { display: flex; gap: 16px; font-size: 13px; color: #8890b0; }
-    .game-card .time { font-size: 11px; color: #6b7280; }
+    .game-card .odds-row { display: flex; gap: 16px; font-size: 13px; color: #6B8080; }
+    .game-card .time { font-size: 11px; color: #4A5A5A; }
     .edge-box {
         border-radius: 10px; padding: 20px; margin: 10px 0;
-        border: 1px solid #2a2a3a;
+        border: 1px solid #1E2E2E;
     }
-    .section-label { color: #D4A017; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+    .section-label { color: #10B981; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
     .prop-card {
-        background: #141420; border: 1px solid #2a2a3a; border-radius: 10px;
+        background: #121A1A; border: 1px solid #1E2E2E; border-radius: 10px;
         padding: 16px; margin-bottom: 8px;
     }
     .sidebar-bankroll {
-        background: linear-gradient(180deg, #141420 0%, #1a1428 100%);
-        border: 1px solid #3a2a0a; border-radius: 10px; padding: 16px; margin-bottom: 12px;
+        background: linear-gradient(180deg, #121A1A 0%, #162020 100%);
+        border: 1px solid #1E3A2E; border-radius: 10px; padding: 16px; margin-bottom: 12px;
     }
-    .footer { color: #4a4a5a; font-size: 11px; text-align: center; padding: 20px; }
+    .footer { color: #3A4A4A; font-size: 11px; text-align: center; padding: 20px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -248,6 +259,17 @@ st.markdown("""
     <h1>Edge Finder v4</h1>
     <p class="subtitle">Find Edge. Not Winners.</p>
     <p class="version">Interactive Demo | Built with Sinton.ia</p>
+</div>
+""", unsafe_allow_html=True)
+
+# --- Active Profile Indicator ---
+_active = st.session_state.active_profile
+_pcfg = PROFILE_CONFIG[_active]
+st.markdown(f"""
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+    <span style="width:10px;height:10px;border-radius:50%;background:{_pcfg['color']};display:inline-block;"></span>
+    <span style="color:{_pcfg['color']};font-size:14px;font-weight:600;">Active: {_active}</span>
+    <span style="color:#6B8080;font-size:12px;">| {_pcfg['label']}</span>
 </div>
 """, unsafe_allow_html=True)
 
@@ -269,11 +291,31 @@ st.markdown(f"""
 # SIDEBAR -- Bankroll Tracker
 # ============================================================
 with st.sidebar:
+    st.markdown('<p class="section-label">Profile</p>', unsafe_allow_html=True)
+    _profile_names = list(PROFILE_CONFIG.keys())
+    _cur_idx = _profile_names.index(st.session_state.active_profile)
+    selected_profile = st.radio(
+        "Select Profile",
+        _profile_names,
+        index=_cur_idx,
+        horizontal=True,
+        key="profile_selector",
+        label_visibility="collapsed",
+    )
+    if selected_profile != st.session_state.active_profile:
+        st.session_state.active_profile = selected_profile
+        st.rerun()
+
+    _sel_cfg = PROFILE_CONFIG[st.session_state.active_profile]
+    st.markdown(f'<p style="color:{_sel_cfg["color"]};font-size:12px;margin-top:-8px;">{_sel_cfg["label"]}</p>', unsafe_allow_html=True)
+
+    st.divider()
+
     st.markdown('<p class="section-label">Bankroll Tracker</p>', unsafe_allow_html=True)
 
-    bal = st.session_state.bankroll["balance"]
-    starting = st.session_state.bankroll["starting"]
-    daily_risk = st.session_state.bankroll["daily_risk"]
+    bal = _p()["bankroll"]["balance"]
+    starting = _p()["bankroll"]["starting"]
+    daily_risk = _p()["bankroll"]["daily_risk"]
     net = bal - starting
     net_pct = (net / starting * 100) if starting > 0 else 0
 
@@ -301,8 +343,8 @@ with st.sidebar:
     sl_color = "#22c55e" if session_pl >= 0 else ("#eab308" if abs(session_pl) < stop_loss else "#ef4444")
     sl_status = "ACTIVE" if abs(session_pl) < stop_loss or session_pl >= 0 else "TRIGGERED"
     st.markdown(f"""
-    <div style="background:#141420;border:1px solid #2a2a3a;border-radius:8px;padding:12px;margin-top:8px;">
-        <p style="color:#8890b0;font-size:11px;margin:0;">Stop-Loss (-10%)</p>
+    <div style="background:#121A1A;border:1px solid #1E2E2E;border-radius:8px;padding:12px;margin-top:8px;">
+        <p style="color:#6B8080;font-size:11px;margin:0;">Stop-Loss (-10%)</p>
         <p style="color:{sl_color};font-size:16px;font-weight:700;margin:4px 0 0 0;">-${stop_loss:,.2f} | {sl_status}</p>
     </div>
     """, unsafe_allow_html=True)
@@ -313,7 +355,7 @@ with st.sidebar:
     st.markdown('<p class="section-label">Set Bankroll</p>', unsafe_allow_html=True)
     new_bal = st.number_input("Balance ($)", min_value=0.0, value=bal, step=50.0, key="bal_input")
     if new_bal != bal:
-        st.session_state.bankroll["balance"] = new_bal
+        _p()["bankroll"]["balance"] = new_bal
 
     st.divider()
 
@@ -369,7 +411,7 @@ tab_slate, tab_edge, tab_parlay, tab_props, tab_audit, tab_chat = st.tabs([
 # ============================================================
 with tab_slate:
     st.markdown("### Tonight's Slate")
-    st.markdown(f'<p style="color:#8890b0;font-size:12px;">Demo data for {datetime.now().strftime("%A, %B %d, %Y")} | All times ET</p>', unsafe_allow_html=True)
+    st.markdown(f'<p style="color:#6B8080;font-size:12px;">Demo data for {datetime.now().strftime("%A, %B %d, %Y")} | All times ET</p>', unsafe_allow_html=True)
 
     sport = st.selectbox("Sport", ["NBA", "NHL", "NFL", "CFB"], key="slate_sport")
     games = get_games(sport)
@@ -383,7 +425,7 @@ with tab_slate:
         st.info("NHL is SECONDARY focus. ML and totals preferred. Goalie situations, B2Bs, weekend heavy.")
 
     for i, g in enumerate(games):
-        grade_color = EDGE_COLORS.get(g["edge"], "#6b7280")
+        grade_color = EDGE_COLORS.get(g["edge"], "#4A5A5A")
         grade_bg = EDGE_BG.get(g["edge"], "rgba(107,114,128,0.15)")
 
         col_main, col_edge = st.columns([4, 1])
@@ -402,7 +444,7 @@ with tab_slate:
         with col_edge:
             st.markdown(f"""
             <div style="text-align:center;padding-top:20px;">
-                <div style="font-size:11px;color:#8890b0;margin-bottom:4px;">EDGE</div>
+                <div style="font-size:11px;color:#6B8080;margin-bottom:4px;">EDGE</div>
                 {edge_badge(g['edge'])}
             </div>
             """, unsafe_allow_html=True)
@@ -420,33 +462,33 @@ with tab_slate:
             st.markdown(f"""
             <div class="edge-box" style="background:{EDGE_BG.get(g['edge'], 'rgba(107,114,128,0.15)')};">
                 <p class="section-label">Edge Grade</p>
-                <div style="font-size:48px;font-weight:700;color:{EDGE_COLORS.get(g['edge'], '#6b7280')};margin:8px 0;">{g['edge']}</div>
+                <div style="font-size:48px;font-weight:700;color:{EDGE_COLORS.get(g['edge'], '#4A5A5A')};margin:8px 0;">{g['edge']}</div>
                 <p style="color:#e2e8f0;font-size:14px;">{g['edge_reason']}</p>
             </div>
             """, unsafe_allow_html=True)
         with col_b:
             action = "Full unit" if g["edge"] == "A" else ("Half unit" if g["edge"] in ["B", "B+"] else ("Small or pass" if g["edge"] == "C" else "NO BET"))
-            action_color = EDGE_COLORS.get(g["edge"], "#6b7280")
+            action_color = EDGE_COLORS.get(g["edge"], "#4A5A5A")
             st.markdown(f"""
-            <div class="edge-box" style="background:#141420;">
+            <div class="edge-box" style="background:#121A1A;">
                 <p class="section-label">Recommendation</p>
                 <div style="font-size:24px;font-weight:700;color:{action_color};margin:8px 0;">{action}</div>
-                <p style="color:#8890b0;font-size:13px;">Spread: {g['spread']} | Total: {g['total']}</p>
-                <p style="color:#8890b0;font-size:13px;">ML: {g['ml_away']} / {g['ml_home']}</p>
+                <p style="color:#6B8080;font-size:13px;">Spread: {g['spread']} | Total: {g['total']}</p>
+                <p style="color:#6B8080;font-size:13px;">ML: {g['ml_away']} / {g['ml_home']}</p>
             </div>
             """, unsafe_allow_html=True)
 
         col_w, col_r = st.columns(2)
         with col_w:
             st.markdown(f"""
-            <div class="edge-box" style="background:#141420;">
+            <div class="edge-box" style="background:#121A1A;">
                 <p class="section-label">Why Market Might Be Wrong</p>
                 <p style="color:#22c55e;font-size:14px;">{g['why_wrong']}</p>
             </div>
             """, unsafe_allow_html=True)
         with col_r:
             st.markdown(f"""
-            <div class="edge-box" style="background:#141420;">
+            <div class="edge-box" style="background:#121A1A;">
                 <p class="section-label">Why Market Might Be Right</p>
                 <p style="color:#ef4444;font-size:14px;">{g['why_right']}</p>
             </div>
@@ -455,7 +497,7 @@ with tab_slate:
         gut_icon = "STRONG ALIGNMENT" if g["gut_data"] == "strong" else ("SUPPORTS" if g["gut_data"] == "supports" else "NEUTRAL")
         gut_color = "#22c55e" if g["gut_data"] in ["strong", "supports"] else "#eab308"
         st.markdown(f"""
-        <div class="edge-box" style="background:#141420;">
+        <div class="edge-box" style="background:#121A1A;">
             <p class="section-label">Gut + Data Alignment</p>
             <p style="color:{gut_color};font-size:18px;font-weight:700;">{gut_icon}</p>
         </div>
@@ -467,7 +509,7 @@ with tab_slate:
 # ============================================================
 with tab_edge:
     st.markdown("### Edge Analyzer")
-    st.markdown('<p style="color:#8890b0;font-size:13px;">Deep dive into any matchup. Answer the core question: Why is the market wrong?</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color:#6B8080;font-size:13px;">Deep dive into any matchup. Answer the core question: Why is the market wrong?</p>', unsafe_allow_html=True)
 
     # Game selector
     all_games = DEMO_NBA_GAMES + DEMO_NHL_GAMES
@@ -485,17 +527,17 @@ with tab_edge:
         # Deep dive layout
         st.markdown(f"""
         <div style="text-align:center;margin:20px 0;">
-            <div style="font-size:12px;color:#8890b0;">DEEP DIVE</div>
+            <div style="font-size:12px;color:#6B8080;">DEEP DIVE</div>
             <div style="font-size:24px;font-weight:700;color:#e2e8f0;margin:4px 0;">{game['away']} @ {game['home']}</div>
-            <div style="font-size:14px;color:#8890b0;">{game['spread']} | O/U {game['total']} | ML {game['ml_away']}/{game['ml_home']}</div>
+            <div style="font-size:14px;color:#6B8080;">{game['spread']} | O/U {game['total']} | ML {game['ml_away']}/{game['ml_home']}</div>
         </div>
         """, unsafe_allow_html=True)
 
         # Edge grade
         st.markdown(f"""
         <div style="text-align:center;margin:20px 0;">
-            <div style="font-size:72px;font-weight:800;color:{EDGE_COLORS.get(game['edge'], '#6b7280')};">{game['edge']}</div>
-            <div style="font-size:14px;color:{EDGE_COLORS.get(game['edge'], '#6b7280')};">{game['edge_reason']}</div>
+            <div style="font-size:72px;font-weight:800;color:{EDGE_COLORS.get(game['edge'], '#4A5A5A')};">{game['edge']}</div>
+            <div style="font-size:14px;color:{EDGE_COLORS.get(game['edge'], '#4A5A5A')};">{game['edge_reason']}</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -520,27 +562,27 @@ with tab_edge:
             gut_color = "#22c55e" if game["gut_data"] in ["strong", "supports"] else "#eab308"
             gut_label = "STRONG ALIGNMENT" if game["gut_data"] == "strong" else ("PARTIAL ALIGNMENT" if game["gut_data"] == "supports" else "NEUTRAL -- Need more data")
             st.markdown(f"""
-            <div class="edge-box" style="background:#141420;">
+            <div class="edge-box" style="background:#121A1A;">
                 <p class="section-label">Gut + Data Check</p>
-                <p style="color:#8890b0;font-size:13px;">Your read: "{thesis}"</p>
+                <p style="color:#6B8080;font-size:13px;">Your read: "{thesis}"</p>
                 <p style="color:{gut_color};font-size:20px;font-weight:700;margin-top:8px;">{gut_label}</p>
-                <p style="color:#8890b0;font-size:12px;margin-top:4px;">Your instinct {'aligns with' if game['gut_data'] != 'neutral' else 'needs more data to align with'} the available data.</p>
+                <p style="color:#6B8080;font-size:12px;margin-top:4px;">Your instinct {'aligns with' if game['gut_data'] != 'neutral' else 'needs more data to align with'} the available data.</p>
             </div>
             """, unsafe_allow_html=True)
 
         # Action recommendation
-        action_map = {"A": ("Full unit. Clear edge.", "#22c55e"), "B+": ("Half to full unit. Edge exists.", "#3b82f6"),
-                      "B": ("Half unit. Moderate confidence.", "#3b82f6"), "B-": ("Small bet. Edge is thin.", "#3b82f6"),
+        action_map = {"A": ("Full unit. Clear edge.", "#22c55e"), "B+": ("Half to full unit. Edge exists.", "#10B981"),
+                      "B": ("Half unit. Moderate confidence.", "#10B981"), "B-": ("Small bet. Edge is thin.", "#10B981"),
                       "C": ("Small bet or PASS. Low confidence.", "#eab308"), "D": ("NO BET. No edge identified.", "#f97316"),
                       "F": ("NO BET. Market is right. Trap.", "#ef4444")}
-        action_text, action_clr = action_map.get(game["edge"], ("NO BET", "#6b7280"))
-        max_s = st.session_state.bankroll["balance"] * 0.05
+        action_text, action_clr = action_map.get(game["edge"], ("NO BET", "#4A5A5A"))
+        max_s = _p()["bankroll"]["balance"] * 0.05
 
         st.markdown(f"""
-        <div class="edge-box" style="background:rgba(212,160,23,0.08);border-color:#D4A01730;">
+        <div class="edge-box" style="background:rgba(16,185,129,0.08);border-color:#10B98130;">
             <p class="section-label">Verdict</p>
             <p style="color:{action_clr};font-size:20px;font-weight:700;">{action_text}</p>
-            <p style="color:#8890b0;font-size:13px;margin-top:4px;">Max risk: ${max_s:,.2f} (5% of bankroll)</p>
+            <p style="color:#6B8080;font-size:13px;margin-top:4px;">Max risk: ${max_s:,.2f} (5% of bankroll)</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -550,7 +592,7 @@ with tab_edge:
 # ============================================================
 with tab_parlay:
     st.markdown("### Parlay Builder")
-    st.markdown('<p style="color:#8890b0;font-size:13px;">Each leg needs its own edge. Not random teams stapled together.</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color:#6B8080;font-size:13px;">Each leg needs its own edge. Not random teams stapled together.</p>', unsafe_allow_html=True)
 
     # Add legs
     all_options = DEMO_NBA_GAMES + DEMO_NHL_GAMES
@@ -561,23 +603,23 @@ with tab_parlay:
 
     if st.button("Add Leg", key="add_leg"):
         g = all_options[selected_leg_idx]
-        if len(st.session_state.parlay_legs) >= 4:
+        if len(_p()["parlay_legs"]) >= 4:
             st.error("HARD STOP: Max 4 legs. More is stupid. Remove a leg first.")
-        elif len(st.session_state.parlay_legs) >= 3:
+        elif len(_p()["parlay_legs"]) >= 3:
             st.warning("3 legs is the recommended max. Adding a 4th is absolute maximum.")
-            st.session_state.parlay_legs.append({"game": f"{g['away']} @ {g['home']}", "type": bet_type,
+            _p()["parlay_legs"].append({"game": f"{g['away']} @ {g['home']}", "type": bet_type,
                                                   "spread": g["spread"], "edge": g["edge"], "odds": g.get("ml_home", "-110")})
         else:
-            st.session_state.parlay_legs.append({"game": f"{g['away']} @ {g['home']}", "type": bet_type,
+            _p()["parlay_legs"].append({"game": f"{g['away']} @ {g['home']}", "type": bet_type,
                                                   "spread": g["spread"], "edge": g["edge"], "odds": g.get("ml_home", "-110")})
             st.success(f"Added: {g['away']} @ {g['home']} ({bet_type})")
 
     # Display legs
-    if st.session_state.parlay_legs:
+    if _p()["parlay_legs"]:
         st.divider()
-        st.markdown(f'<p class="section-label">Parlay Legs ({len(st.session_state.parlay_legs)})</p>', unsafe_allow_html=True)
+        st.markdown(f'<p class="section-label">Parlay Legs ({len(_p()["parlay_legs"])})</p>', unsafe_allow_html=True)
 
-        for i, leg in enumerate(st.session_state.parlay_legs):
+        for i, leg in enumerate(_p()["parlay_legs"]):
             col_leg, col_rm = st.columns([5, 1])
             with col_leg:
                 st.markdown(f"""
@@ -585,7 +627,7 @@ with tab_parlay:
                     <div style="display:flex;justify-content:space-between;align-items:center;">
                         <div>
                             <span style="color:#e2e8f0;font-weight:600;">Leg {i+1}: {leg['game']}</span>
-                            <span style="color:#8890b0;font-size:12px;margin-left:12px;">{leg['type']} | {leg['spread']}</span>
+                            <span style="color:#6B8080;font-size:12px;margin-left:12px;">{leg['type']} | {leg['spread']}</span>
                         </div>
                         <div>{edge_badge(leg['edge'])}</div>
                     </div>
@@ -593,19 +635,19 @@ with tab_parlay:
                 """, unsafe_allow_html=True)
             with col_rm:
                 if st.button("Remove", key=f"rm_leg_{i}"):
-                    st.session_state.parlay_legs.pop(i)
+                    _p()["parlay_legs"].pop(i)
                     st.rerun()
 
         # Validation: Would you bet each straight?
         st.markdown(f"""
-        <div class="edge-box" style="background:#141420;">
+        <div class="edge-box" style="background:#121A1A;">
             <p class="section-label">Straight Bet Validation</p>
-            <p style="color:#8890b0;font-size:13px;">Would you place each leg as a straight bet?</p>
+            <p style="color:#6B8080;font-size:13px;">Would you place each leg as a straight bet?</p>
         </div>
         """, unsafe_allow_html=True)
 
         all_valid = True
-        for leg in st.session_state.parlay_legs:
+        for leg in _p()["parlay_legs"]:
             if leg["edge"] in ["D", "F"]:
                 st.markdown(f'<p style="color:#ef4444;font-size:13px;">WARNING: {leg["game"]} has Grade {leg["edge"]}. No edge = no leg.</p>', unsafe_allow_html=True)
                 all_valid = False
@@ -618,13 +660,13 @@ with tab_parlay:
 
         # Combined odds (simplified demo calculation)
         st.divider()
-        num_legs = len(st.session_state.parlay_legs)
+        num_legs = len(_p()["parlay_legs"])
         # Demo combined odds based on leg count
         combined_map = {1: 100, 2: 264, 3: 485, 4: 890}
         combined_odds = combined_map.get(num_legs, 485)
 
         profile = "Value Builder (+400 to +1000)" if 2 <= num_legs <= 3 else ("Long Shot (+800 to +2500)" if num_legs == 4 else "Straight Bet")
-        max_risk = st.session_state.bankroll["balance"] * 0.05
+        max_risk = _p()["bankroll"]["balance"] * 0.05
 
         col_o, col_p, col_r = st.columns(3)
         with col_o:
@@ -637,17 +679,17 @@ with tab_parlay:
 
         payout = suggested_risk * (combined_odds / 100)
         st.markdown(f"""
-        <div class="edge-box" style="background:rgba(212,160,23,0.08);border-color:#D4A01730;">
-            <p style="color:#D4A017;font-size:16px;font-weight:700;">Risk ${suggested_risk:,.2f} to win ${payout:,.2f}</p>
-            <p style="color:#8890b0;font-size:12px;">Max daily risk: ${st.session_state.bankroll['balance'] * 0.15:,.2f} | Currently exposed: ${st.session_state.bankroll['daily_risk']:,.2f}</p>
+        <div class="edge-box" style="background:rgba(16,185,129,0.08);border-color:#10B98130;">
+            <p style="color:#10B981;font-size:16px;font-weight:700;">Risk ${suggested_risk:,.2f} to win ${payout:,.2f}</p>
+            <p style="color:#6B8080;font-size:12px;">Max daily risk: ${_p()['bankroll']['balance'] * 0.15:,.2f} | Currently exposed: ${_p()['bankroll']['daily_risk']:,.2f}</p>
         </div>
         """, unsafe_allow_html=True)
 
         if st.button("Clear All Legs", key="clear_legs"):
-            st.session_state.parlay_legs = []
+            _p()["parlay_legs"].clear()
             st.rerun()
     else:
-        st.markdown('<p style="color:#6b7280;font-size:14px;text-align:center;padding:40px 0;">No legs added yet. Select a game above to start building.</p>', unsafe_allow_html=True)
+        st.markdown('<p style="color:#4A5A5A;font-size:14px;text-align:center;padding:40px 0;">No legs added yet. Select a game above to start building.</p>', unsafe_allow_html=True)
 
 
 # ============================================================
@@ -655,7 +697,7 @@ with tab_parlay:
 # ============================================================
 with tab_props:
     st.markdown("### Player Props")
-    st.markdown('<p style="color:#8890b0;font-size:13px;">Props are about matchups, not just talent. Matchup-driven thesis required.</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color:#6B8080;font-size:13px;">Props are about matchups, not just talent. Matchup-driven thesis required.</p>', unsafe_allow_html=True)
 
     # Search / filter
     col_search, col_sport_filter = st.columns([3, 1])
@@ -671,10 +713,10 @@ with tab_props:
         filtered_props = [p for p in filtered_props if p["sport"] == sport_filter]
 
     if not filtered_props:
-        st.markdown('<p style="color:#6b7280;font-size:14px;text-align:center;padding:20px;">No props found matching your search.</p>', unsafe_allow_html=True)
+        st.markdown('<p style="color:#4A5A5A;font-size:14px;text-align:center;padding:20px;">No props found matching your search.</p>', unsafe_allow_html=True)
 
     for p in filtered_props:
-        grade_color = EDGE_COLORS.get(p["edge"], "#6b7280")
+        grade_color = EDGE_COLORS.get(p["edge"], "#4A5A5A")
         grade_bg = EDGE_BG.get(p["edge"], "rgba(107,114,128,0.15)")
 
         st.markdown(f"""
@@ -683,14 +725,14 @@ with tab_props:
                 <div style="flex:1;">
                     <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
                         <span style="color:#e2e8f0;font-size:16px;font-weight:600;">{p['player']}</span>
-                        <span style="color:#8890b0;font-size:12px;">{p['team']} | {p['sport']}</span>
+                        <span style="color:#6B8080;font-size:12px;">{p['team']} | {p['sport']}</span>
                         {edge_badge(p['edge'])}
                     </div>
                     <div style="margin-bottom:8px;">
-                        <span style="color:#D4A017;font-weight:600;">{p['prop']}: {p['line']}</span>
-                        <span style="color:#6b7280;font-size:12px;margin-left:12px;">{p['matchup']}</span>
+                        <span style="color:#10B981;font-weight:600;">{p['prop']}: {p['line']}</span>
+                        <span style="color:#4A5A5A;font-size:12px;margin-left:12px;">{p['matchup']}</span>
                     </div>
-                    <p style="color:#8890b0;font-size:13px;margin:4px 0;">{p['reason']}</p>
+                    <p style="color:#6B8080;font-size:13px;margin:4px 0;">{p['reason']}</p>
                     <p style="color:{grade_color};font-size:13px;font-weight:600;margin:4px 0;">{p['recommendation']}</p>
                 </div>
             </div>
@@ -703,7 +745,7 @@ with tab_props:
 # ============================================================
 with tab_audit:
     st.markdown("### My Audit")
-    st.markdown('<p style="color:#8890b0;font-size:13px;">Grade process, not outcome. No excuses. Loss is a loss.</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color:#6B8080;font-size:13px;">Grade process, not outcome. No excuses. Loss is a loss.</p>', unsafe_allow_html=True)
 
     # Summary metrics
     total_bets = len(DEMO_BET_LOG)
@@ -767,7 +809,7 @@ with tab_audit:
                 <div>
                     <span style="color:{icon_color};font-weight:700;margin-right:8px;">{'W' if b['result'] == 'W' else 'L'}</span>
                     <span style="color:#e2e8f0;font-weight:600;">{b['game']}</span>
-                    <span style="color:#8890b0;font-size:12px;margin-left:12px;">{b['date']}</span>
+                    <span style="color:#6B8080;font-size:12px;margin-left:12px;">{b['date']}</span>
                 </div>
                 <div style="display:flex;align-items:center;gap:12px;">
                     <span style="color:{icon_color};font-weight:600;">${pl:+,}</span>
@@ -775,7 +817,7 @@ with tab_audit:
                     <span style="color:{edge_color};font-size:12px;font-weight:600;">{edge_label}</span>
                 </div>
             </div>
-            <p style="color:#8890b0;font-size:12px;margin-top:6px;">{b['notes']}</p>
+            <p style="color:#6B8080;font-size:12px;margin-top:6px;">{b['notes']}</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -800,20 +842,20 @@ with tab_audit:
     fig.add_trace(go.Scatter(
         x=df_weekly["week"], y=df_weekly["ending"],
         mode="lines+markers", name="Balance",
-        line=dict(color="#D4A017", width=2),
-        marker=dict(size=6, color="#D4A017"),
+        line=dict(color="#10B981", width=2),
+        marker=dict(size=6, color="#10B981"),
         yaxis="y2",
     ))
 
     fig.update_layout(
         template="plotly_dark",
-        paper_bgcolor="#0a0a1a",
-        plot_bgcolor="#0a0a1a",
-        font=dict(color="#8890b0"),
+        paper_bgcolor="#0B0F0F",
+        plot_bgcolor="#0B0F0F",
+        font=dict(color="#6B8080"),
         height=350,
         margin=dict(l=40, r=40, t=20, b=40),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        yaxis=dict(title="Net P/L ($)", gridcolor="#1e1e30", zeroline=True, zerolinecolor="#2a2a3a"),
+        yaxis=dict(title="Net P/L ($)", gridcolor="#162020", zeroline=True, zerolinecolor="#1E2E2E"),
         yaxis2=dict(title="Balance ($)", overlaying="y", side="right", gridcolor="rgba(0,0,0,0)"),
         bargap=0.3,
     )
@@ -845,14 +887,103 @@ with tab_audit:
         submitted = st.form_submit_button("Log Bet", use_container_width=True)
 
         if submitted and log_game:
-            st.session_state.bet_log.append({
+            _p()["bet_log"].append({
                 "date": datetime.now().strftime("%Y-%m-%d"),
                 "game": log_game, "type": log_type, "grade": log_grade,
                 "risk": log_risk, "result": log_result, "payout": log_payout,
                 "thesis": log_thesis,
             })
-            st.session_state.bankroll["daily_risk"] += log_risk
-            st.success(f"Logged: {log_game} | Grade {log_grade} | ${log_risk}")
+            _p()["bankroll"]["daily_risk"] += log_risk
+            st.success(f"Logged: {log_game} | Grade {log_grade} | ${log_risk} | Profile: {st.session_state.active_profile}")
+
+    # --- User-logged bets for current profile ---
+    if _p()["bet_log"]:
+        st.divider()
+        st.markdown(f'<p class="section-label">{st.session_state.active_profile} -- Logged Bets</p>', unsafe_allow_html=True)
+        user_log_data = []
+        for b in _p()["bet_log"]:
+            pl = b["payout"] - b["risk"] if b["result"] in ["W", "L"] else 0
+            user_log_data.append({
+                "Date": b["date"], "Game": b["game"], "Type": b["type"],
+                "Grade": b["grade"], "Risk": f"${b['risk']:,.2f}",
+                "Result": b["result"], "P/L": f"${pl:+,.2f}",
+            })
+        st.dataframe(pd.DataFrame(user_log_data), use_container_width=True, hide_index=True)
+
+    # --- Leaderboard ---
+    st.divider()
+    st.markdown('<p class="section-label">Leaderboard</p>', unsafe_allow_html=True)
+
+    leaderboard_rows = []
+    for pname, pcfg in PROFILE_CONFIG.items():
+        pdata = st.session_state.profiles[pname]
+        p_bets = pdata["bet_log"]
+        p_total = len(p_bets)
+        p_wins = sum(1 for b in p_bets if b.get("result") == "W")
+        p_losses = sum(1 for b in p_bets if b.get("result") == "L")
+        p_risk = sum(b["risk"] for b in p_bets)
+        p_payout = sum(b["payout"] for b in p_bets if b.get("result") in ["W", "L"])
+        p_net = p_payout - sum(b["risk"] for b in p_bets if b.get("result") in ["W", "L"])
+        p_roi = (p_net / p_risk * 100) if p_risk > 0 else 0.0
+        leaderboard_rows.append({
+            "Profile": pname,
+            "Bets": p_total,
+            "Record": f"{p_wins}-{p_losses}",
+            "Net P/L": p_net,
+            "ROI": p_roi,
+            "Balance": pdata["bankroll"]["balance"],
+        })
+    # Sort by Net P/L descending
+    leaderboard_rows.sort(key=lambda r: r["Net P/L"], reverse=True)
+    for idx, row in enumerate(leaderboard_rows):
+        rank = idx + 1
+        pl_color = "#22c55e" if row["Net P/L"] >= 0 else "#ef4444"
+        pcol = PROFILE_CONFIG[row["Profile"]]["color"]
+        st.markdown(f"""
+        <div class="prop-card" style="padding:10px 16px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <span style="color:#6B8080;font-size:18px;font-weight:700;">#{rank}</span>
+                    <span style="color:{pcol};font-size:15px;font-weight:600;">{row['Profile']}</span>
+                    <span style="color:#6B8080;font-size:12px;">{row['Record']} | {row['Bets']} bets</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:16px;">
+                    <span style="color:{pl_color};font-size:15px;font-weight:700;">${row['Net P/L']:+,.2f}</span>
+                    <span style="color:#6B8080;font-size:12px;">ROI: {row['ROI']:+.1f}%</span>
+                    <span style="color:#6B8080;font-size:12px;">Bal: ${row['Balance']:,.2f}</span>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # --- Compare All Profiles ---
+    st.divider()
+    compare_all = st.checkbox("Compare All Profiles", key="compare_profiles")
+    if compare_all:
+        st.markdown('<p class="section-label">Profile Comparison</p>', unsafe_allow_html=True)
+        compare_rows = []
+        for pname in PROFILE_CONFIG:
+            pdata = st.session_state.profiles[pname]
+            p_bets = pdata["bet_log"]
+            p_total = len(p_bets)
+            p_wins = sum(1 for b in p_bets if b.get("result") == "W")
+            p_losses = sum(1 for b in p_bets if b.get("result") == "L")
+            p_pending = sum(1 for b in p_bets if b.get("result") == "Pending")
+            p_risk = sum(b["risk"] for b in p_bets if b.get("result") in ["W", "L"])
+            p_payout = sum(b["payout"] for b in p_bets if b.get("result") in ["W", "L"])
+            p_net = p_payout - p_risk
+            p_roi = (p_net / p_risk * 100) if p_risk > 0 else 0.0
+            compare_rows.append({
+                "Profile": pname,
+                "Balance": f"${pdata['bankroll']['balance']:,.2f}",
+                "Total Bets": p_total,
+                "Record": f"{p_wins}-{p_losses}",
+                "Pending": p_pending,
+                "Net P/L": f"${p_net:+,.2f}",
+                "ROI": f"{p_roi:+.1f}%",
+                "Total Risked": f"${p_risk:,.2f}",
+            })
+        st.dataframe(pd.DataFrame(compare_rows), use_container_width=True, hide_index=True)
 
 
 # ============================================================
@@ -860,7 +991,7 @@ with tab_audit:
 # ============================================================
 with tab_chat:
     st.markdown("### Edge Finder AI")
-    st.markdown('<p style="color:#8890b0;font-size:13px;">Ask me anything. "What\'s the play today?" | "I like the Bucks tonight" | "Run audit"</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color:#6B8080;font-size:13px;">Ask me anything. "What\'s the play today?" | "I like the Bucks tonight" | "Run audit"</p>', unsafe_allow_html=True)
 
     SYSTEM_PROMPT = """You are Edge Finder v4, Peter's betting analyst. Your job is to find edge -- situations where the market is wrong.
 
@@ -975,20 +1106,20 @@ Edge identification was strong. Only miss was a C-grade bet that should have bee
     }
 
     # Initialize chat
-    if not st.session_state.chat_messages:
-        st.session_state.chat_messages.append({
+    if not _p()["chat_messages"]:
+        _p()["chat_messages"].append({
             "role": "assistant",
             "content": "Edge Finder v4 online. What's the play today?\n\nI can analyze any matchup, build parlays, check player props, or run your audit. Give me a game, a gut feeling, or just ask what's worth betting tonight."
         })
 
     # Display messages
-    for msg in st.session_state.chat_messages:
+    for msg in _p()["chat_messages"]:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
     # Chat input
     if prompt := st.chat_input("Ask Edge Finder..."):
-        st.session_state.chat_messages.append({"role": "user", "content": prompt})
+        _p()["chat_messages"].append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
@@ -1004,7 +1135,7 @@ Edge identification was strong. Only miss was a C-grade bet that should have bee
                 )
                 deployment = st.secrets.get("AZURE_OPENAI_DEPLOYMENT", "gpt-4o")
                 messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-                for m in st.session_state.chat_messages[-10:]:
+                for m in _p()["chat_messages"][-10:]:
                     messages.append({"role": m["role"], "content": m["content"]})
 
                 with st.chat_message("assistant"):
@@ -1049,7 +1180,7 @@ Try:
                 st.markdown(demo_response)
             response = demo_response
 
-        st.session_state.chat_messages.append({"role": "assistant", "content": response})
+        _p()["chat_messages"].append({"role": "assistant", "content": response})
 
 
 # --- Footer ---
