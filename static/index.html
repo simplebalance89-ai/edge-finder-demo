@@ -690,6 +690,11 @@
             <p>Tap the one that fits</p>
         </div>
         <div class="style-grid" id="styleGrid">
+            <div class="style-card" data-style="heavy-sharp-value" onclick="selectStyle(this)">
+                <div class="style-icon">&#x1F451;</div>
+                <div class="style-name">Heavy + Sharp + Value</div>
+                <div class="style-desc">Big when conviction is real. Reads sharp money. Hunts mispriced lines. The full package.</div>
+            </div>
             <div class="style-card" data-style="heavy-hitter" onclick="selectStyle(this)">
                 <div class="style-icon">&#x1F4A5;</div>
                 <div class="style-name">Heavy Hitter</div>
@@ -720,8 +725,8 @@
     <!-- STEP 2: PICK YOUR SPORT -->
     <div class="step" id="step2">
         <div class="pick-header">
-            <h2>Pick Your Sport</h2>
-            <p>Tap to analyze</p>
+            <h2>Pick Your Sports</h2>
+            <p>Select one or more</p>
         </div>
         <div class="sport-grid" id="sportGrid">
             <div class="sport-card" data-sport="nfl" onclick="selectSport(this)">
@@ -913,14 +918,20 @@ function selectStyle(el) {
     btn.style.pointerEvents = 'auto';
 }
 
-/* ===== SPORT SELECTION ===== */
+/* ===== SPORT SELECTION (multi-select) ===== */
+let selectedSports = [];
 function selectSport(el) {
-    document.querySelectorAll('.sport-card').forEach(c => c.classList.remove('selected'));
-    el.classList.add('selected');
-    selectedSport = el.dataset.sport;
+    el.classList.toggle('selected');
+    const sport = el.dataset.sport;
+    if (selectedSports.includes(sport)) {
+        selectedSports = selectedSports.filter(s => s !== sport);
+    } else {
+        selectedSports.push(sport);
+    }
+    selectedSport = selectedSports[0] || null;
     const btn = document.getElementById('step2Next');
-    btn.style.opacity = '1';
-    btn.style.pointerEvents = 'auto';
+    btn.style.opacity = selectedSports.length > 0 ? '1' : '0.4';
+    btn.style.pointerEvents = selectedSports.length > 0 ? 'auto' : 'none';
 }
 
 /* ===== ANALYSIS RENDERING ===== */
