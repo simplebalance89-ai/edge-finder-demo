@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="version" content="1.0">
+<meta property="og:title" content="Edge Finder Demo - AI Sports Betting Analysis">
+<meta property="og:description" content="AI-powered sports betting analysis. Find edges the market misses. No edge = no bet.">
+<meta property="og:type" content="website">
+<title>Edge Finder Demo — AI Sports Betting Analysis</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=Nunito:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+        font-family: 'Nunito', sans-serif;
+        background: #0D0D1A;
+        color: #FFFEF7;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow-x: hidden;
+    }
+
+    /* ===== CONTEXT BANNER (persistent) ===== */
+    .context-banner {
+        width: 100%;
+        background: rgba(16, 185, 129, 0.12);
+        border-bottom: 1px solid rgba(16, 185, 129, 0.25);
+        padding: 8px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-size: 0.72rem;
+        color: #E0C8A0;
+        letter-spacing: 0.5px;
+        z-index: 100;
+        flex-shrink: 0;
+    }
+    .context-banner .banner-sep {
+        color: rgba(255,255,255,0.15);
+        margin: 0 2px;
+    }
+    .context-banner .banner-accent {
+        color: #10B981;
+        font-weight: 700;
+    }
+
+    /* ===== PROGRESS INDICATOR ===== */
+    .progress-bar {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 10px 16px 6px;
+        flex-shrink: 0;
+    }
+    .progress-bar.hidden { display: none; }
+    .progress-step {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .progress-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.1);
+        border: 1.5px solid rgba(255,255,255,0.15);
+        transition: all 0.4s ease;
+    }
+    .progress-dot.active {
+        background: #D4A017;
+        border-color: #D4A017;
+        box-shadow: 0 0 8px rgba(212,160,23,0.4);
+    }
+    .progress-dot.done {
+        background: #10B981;
+        border-color: #10B981;
+    }
+    .progress-line {
+        width: 24px;
+        height: 2px;
+        background: rgba(255,255,255,0.08);
+        transition: background 0.4s ease;
+    }
+    .progress-line.done { background: #10B981; }
+    .progress-label {
+        font-size: 0.6rem;
+        color: #666;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-left: 8px;
+    }
+
+    /* ===== STEPS CONTAINER ===== */
+    .steps-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        overflow-y: auto;
+    }
+
+    .step {
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        max-width: 900px;
+        padding: 0 20px;
+        animation: fadeIn 0.5s ease;
+    }
+    .step.active { display: flex; }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(12px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ===== STEP 0: WELCOME ===== */
+    .welcome-screen {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 40px 20px;
+        min-height: 70vh;
+    }
+    .welcome-eyebrow {
+        font-size: 0.65rem;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+        color: #10B981;
+        font-weight: 700;
+        margin-bottom: 16px;
+    }
+    .welcome-title {
+        font-family: 'Playfair Display', serif;
+        font-size: clamp(1.8rem, 5vw, 3rem);
+        font-weight: 900;
+        background: linear-gradient(135deg, #D4A017, #FFE082, #D4A017);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 16px;
+        line-height: 1.2;
+    }
+    .welcome-desc {
+        font-size: clamp(0.9rem, 2.2vw, 1.1rem);
+        color: #8A7A5A;
+        max-width: 480px;
+        line-height: 1.6;
+        margin-bottom: 8px;
+    }
+    .welcome-sub {
+        font-size: 0.8rem;
+        color: #10B981;
+        font-weight: 700;
+        letter-spacing: 1px;
+        margin-bottom: 32px;
+    }
+    .welcome-cta {
+        padding: 16px 48px;
+        border-radius: 32px;
+        border: none;
+        background: linear-gradient(135deg, #D4A017, #B8860B);
+        color: #0D0D1A;
+        font-family: 'Nunito', sans-serif;
+        font-size: 1.1rem;
+        font-weight: 800;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 6px 24px rgba(212,160,23,0.3);
+        letter-spacing: 1px;
+    }
+    .welcome-cta:hover {
+        transform: scale(1.05);
+        box-shadow: 0 10px 40px rgba(212,160,23,0.5);
+    }
+    .welcome-powered {
+        margin-top: 32px;
+        font-size: 0.65rem;
+        color: #444;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+    }
+
+    /* ===== STEP 1: YOUR PROFILE ===== */
+    .pick-header {
+        text-align: center;
+        margin: 20px 0 8px;
+    }
+    .pick-header h2 {
+        font-family: 'Playfair Display', serif;
+        font-size: 1.5rem;
+        color: #FFE082;
+        margin-bottom: 4px;
+    }
+    .pick-header p {
+        font-size: 0.85rem;
+        color: #8A7A5A;
+    }
+    .name-input-wrap {
+        width: 100%;
+        max-width: 400px;
+        margin: 16px auto;
+    }
+    .name-input {
+        width: 100%;
+        padding: 14px 20px;
+        border-radius: 16px;
+        border: 2px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.03);
+        color: #FFFEF7;
+        font-family: 'Nunito', sans-serif;
+        font-size: 1rem;
+        outline: none;
+        transition: border-color 0.3s ease;
+        text-align: center;
+    }
+    .name-input::placeholder { color: #555; }
+    .name-input:focus { border-color: #D4A017; }
+
+    .style-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        width: 100%;
+        max-width: 600px;
+        padding: 12px 0 20px;
+    }
+    .style-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px 16px;
+        border-radius: 16px;
+        background: rgba(255,255,255,0.03);
+        border: 2px solid rgba(255,255,255,0.06);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+    }
+    .style-card:hover {
+        border-color: rgba(212,160,23,0.4);
+        background: rgba(212,160,23,0.06);
+        transform: translateY(-2px);
+    }
+    .style-card.selected {
+        border-color: #D4A017;
+        background: rgba(212,160,23,0.12);
+        box-shadow: 0 4px 20px rgba(212,160,23,0.2);
+    }
+    .style-icon { font-size: 1.6rem; margin-bottom: 8px; }
+    .style-name {
+        font-family: 'Playfair Display', serif;
+        font-size: 1rem;
+        font-weight: 700;
+        color: #FFE082;
+        margin-bottom: 4px;
+    }
+    .style-desc {
+        font-size: 0.72rem;
+        color: #8A7A5A;
+        line-height: 1.4;
+    }
+
+    /* ===== STEP 2: PICK SPORT ===== */
+    .sport-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        width: 100%;
+        max-width: 700px;
+        padding: 12px 0 20px;
+    }
+    .sport-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px 12px;
+        border-radius: 16px;
+        background: rgba(255,255,255,0.03);
+        border: 2px solid rgba(255,255,255,0.06);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+    }
+    .sport-card:hover {
+        border-color: rgba(212,160,23,0.4);
+        background: rgba(212,160,23,0.06);
+        transform: translateY(-2px);
+    }
+    .sport-card.selected {
+        border-color: #D4A017;
+        background: rgba(212,160,23,0.12);
+        box-shadow: 0 4px 20px rgba(212,160,23,0.2);
+    }
+    .sport-icon { font-size: 1.8rem; margin-bottom: 8px; }
+    .sport-name {
+        font-family: 'Playfair Display', serif;
+        font-size: 1rem;
+        font-weight: 700;
+        color: #FFE082;
+        margin-bottom: 2px;
+    }
+    .sport-tag {
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: #10B981;
+        margin-bottom: 6px;
+    }
+    .sport-desc {
+        font-size: 0.68rem;
+        color: #8A7A5A;
+        line-height: 1.4;
+    }
+
+    /* ===== STEP 3: EDGE ANALYSIS ===== */
+    .analysis-section {
+        width: 100%;
+        max-width: 700px;
+        padding: 0 0 24px;
+    }
+    .analysis-card {
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 16px;
+        padding: 24px;
+        margin-bottom: 16px;
+        transition: all 0.3s ease;
+    }
+    .analysis-card:hover {
+        border-color: rgba(212,160,23,0.3);
+        box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+    }
+    .analysis-card.pass-card {
+        border-color: rgba(239, 68, 68, 0.3);
+        background: rgba(239, 68, 68, 0.04);
+    }
+    .analysis-matchup {
+        font-family: 'Playfair Display', serif;
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #FFE082;
+        margin-bottom: 4px;
+    }
+    .analysis-line {
+        font-size: 0.78rem;
+        color: #8A7A5A;
+        margin-bottom: 16px;
+    }
+    .analysis-heading {
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+        padding-top: 12px;
+    }
+    .analysis-heading.why-wrong { color: #10B981; }
+    .analysis-heading.why-right { color: #D4A017; }
+    .analysis-heading.red-flag { color: #EF4444; }
+    .analysis-bullet {
+        font-size: 0.82rem;
+        color: #FFFEF7;
+        padding: 3px 0 3px 16px;
+        position: relative;
+        line-height: 1.5;
+    }
+    .analysis-bullet::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 11px;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: #8A7A5A;
+    }
+    .analysis-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .grade-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        font-family: 'Playfair Display', serif;
+        font-size: 1.3rem;
+        font-weight: 900;
+    }
+    .grade-a { background: rgba(16,185,129,0.2); color: #10B981; border: 2px solid #10B981; }
+    .grade-b { background: rgba(212,160,23,0.15); color: #D4A017; border: 2px solid #D4A017; }
+    .grade-c { background: rgba(138,122,90,0.2); color: #8A7A5A; border: 2px solid #8A7A5A; }
+    .grade-f { background: rgba(239,68,68,0.2); color: #EF4444; border: 2px solid #EF4444; }
+    .analysis-rec {
+        font-size: 0.82rem;
+        color: #FFFEF7;
+        font-weight: 600;
+        flex: 1;
+        margin-left: 16px;
+    }
+
+    .prompt-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: center;
+        margin: 16px 0 24px;
+        width: 100%;
+        max-width: 700px;
+    }
+    .prompt-btn {
+        padding: 10px 20px;
+        border-radius: 24px;
+        border: 1.5px solid rgba(212,160,23,0.3);
+        background: rgba(212,160,23,0.06);
+        color: #FFE082;
+        font-family: 'Nunito', sans-serif;
+        font-size: 0.82rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    .prompt-btn:hover {
+        border-color: #D4A017;
+        background: rgba(212,160,23,0.15);
+        transform: translateY(-1px);
+    }
+
+    /* ===== STEP 4: THE SYSTEM ===== */
+    .system-section {
+        width: 100%;
+        max-width: 700px;
+        padding: 0 0 24px;
+    }
+    .system-subtitle {
+        text-align: center;
+        font-size: 0.85rem;
+        color: #8A7A5A;
+        margin-bottom: 24px;
+    }
+    .cap-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 10px;
+        width: 100%;
+        margin-bottom: 32px;
+    }
+    .cap-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        padding: 16px 8px;
+        border-radius: 14px;
+        background: rgba(255,255,255,0.02);
+        border: 1px solid rgba(255,255,255,0.05);
+        transition: all 0.3s ease;
+        text-align: center;
+    }
+    .cap-item:hover {
+        background: rgba(16,185,129,0.06);
+        border-color: rgba(16,185,129,0.2);
+        transform: translateY(-2px);
+    }
+    .cap-icon { font-size: 1.4rem; }
+    .cap-label {
+        font-size: 0.62rem;
+        color: #8A7A5A;
+        line-height: 1.3;
+        font-weight: 600;
+    }
+    .system-quote {
+        text-align: center;
+        padding: 24px;
+        background: rgba(16,185,129,0.05);
+        border: 1px solid rgba(16,185,129,0.15);
+        border-radius: 16px;
+        margin-bottom: 24px;
+    }
+    .system-quote p {
+        font-family: 'Playfair Display', serif;
+        font-size: 0.95rem;
+        font-style: italic;
+        color: #FFE082;
+        line-height: 1.6;
+    }
+
+    /* ===== BUTTONS ===== */
+    .btn-row {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        padding: 16px 0;
+        width: 100%;
+        max-width: 700px;
+    }
+    .btn-primary {
+        padding: 14px 36px;
+        border-radius: 28px;
+        border: none;
+        background: linear-gradient(135deg, #D4A017, #B8860B);
+        color: #0D0D1A;
+        font-family: 'Nunito', sans-serif;
+        font-size: 0.95rem;
+        font-weight: 800;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 16px rgba(212,160,23,0.25);
+        letter-spacing: 0.5px;
+    }
+    .btn-primary:hover {
+        transform: scale(1.04);
+        box-shadow: 0 8px 32px rgba(212,160,23,0.4);
+    }
+    .btn-secondary {
+        padding: 14px 36px;
+        border-radius: 28px;
+        border: 1.5px solid rgba(212,160,23,0.3);
+        background: transparent;
+        color: #D4A017;
+        font-family: 'Nunito', sans-serif;
+        font-size: 0.95rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    .btn-secondary:hover {
+        border-color: #D4A017;
+        background: rgba(212,160,23,0.08);
+    }
+
+    /* ===== FOOTER ===== */
+    .footer {
+        width: 100%;
+        padding: 12px;
+        text-align: center;
+        font-size: 0.6rem;
+        color: #333;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        flex-shrink: 0;
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 640px) {
+        .style-grid { grid-template-columns: 1fr; }
+        .sport-grid { grid-template-columns: repeat(2, 1fr); }
+        .cap-grid { grid-template-columns: repeat(3, 1fr); }
+        .btn-row { flex-direction: column; align-items: center; }
+    }
+    @media (max-width: 420px) {
+        .sport-grid { grid-template-columns: 1fr; }
+        .cap-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+</style>
+</head>
+<body>
+
+<!-- CONTEXT BANNER -->
+<div class="context-banner">
+    <span class="banner-accent">EDGE FINDER</span>
+    <span class="banner-sep">|</span>
+    <span>AI-Powered Sports Betting Analysis</span>
+    <span class="banner-sep">|</span>
+    <span>Interactive Demo</span>
+</div>
+
+<!-- PROGRESS BAR -->
+<div class="progress-bar hidden" id="progressBar">
+    <div class="progress-step">
+        <div class="progress-dot" data-step="0"></div>
+        <div class="progress-line" data-line="0"></div>
+    </div>
+    <div class="progress-step">
+        <div class="progress-dot" data-step="1"></div>
+        <div class="progress-line" data-line="1"></div>
+    </div>
+    <div class="progress-step">
+        <div class="progress-dot" data-step="2"></div>
+        <div class="progress-line" data-line="2"></div>
+    </div>
+    <div class="progress-step">
+        <div class="progress-dot" data-step="3"></div>
+        <div class="progress-line" data-line="3"></div>
+    </div>
+    <div class="progress-step">
+        <div class="progress-dot" data-step="4"></div>
+    </div>
+    <span class="progress-label" id="progressLabel">PROFILE</span>
+</div>
+
+<!-- STEPS CONTAINER -->
+<div class="steps-container">
+
+    <!-- STEP 0: WELCOME -->
+    <div class="step active" id="step0">
+        <div class="welcome-screen">
+            <div class="welcome-eyebrow">LIVE AI DEMO</div>
+            <h1 class="welcome-title">Welcome to Edge Finder</h1>
+            <p class="welcome-desc">AI-powered sports betting analysis. Find edges the market misses. No edge = no bet.</p>
+            <p class="welcome-sub">Thesis over tickets. Process over outcome.</p>
+            <button class="welcome-cta" onclick="goToStep(1)">Find Your Edge</button>
+            <div class="welcome-powered">POWERED BY CAPO AI</div>
+        </div>
+    </div>
+
+    <!-- STEP 1: YOUR PROFILE -->
+    <div class="step" id="step1">
+        <div class="pick-header">
+            <h2>What's your name?</h2>
+            <p>Optional. We'll personalize your analysis.</p>
+        </div>
+        <div class="name-input-wrap">
+            <input type="text" class="name-input" id="userName" placeholder="Enter your name (optional)">
+        </div>
+        <div class="pick-header" style="margin-top:8px;">
+            <h2>Pick your betting style</h2>
+            <p>Tap the one that fits</p>
+        </div>
+        <div class="style-grid" id="styleGrid">
+            <div class="style-card" data-style="heavy-hitter" onclick="selectStyle(this)">
+                <div class="style-icon">&#x1F4A5;</div>
+                <div class="style-name">Heavy Hitter</div>
+                <div class="style-desc">Big straight bets. High conviction. $100-500 range.</div>
+            </div>
+            <div class="style-card" data-style="value-builder" onclick="selectStyle(this)">
+                <div class="style-icon">&#x1F3AF;</div>
+                <div class="style-name">Value Builder</div>
+                <div class="style-desc">2-3 leg parlays. Each leg stands alone.</div>
+            </div>
+            <div class="style-card" data-style="props-hunter" onclick="selectStyle(this)">
+                <div class="style-icon">&#x1F50D;</div>
+                <div class="style-name">Props Hunter</div>
+                <div class="style-desc">Player props based on matchups, not averages.</div>
+            </div>
+            <div class="style-card" data-style="sharp-eye" onclick="selectStyle(this)">
+                <div class="style-icon">&#x1F4C8;</div>
+                <div class="style-name">Sharp Eye</div>
+                <div class="style-desc">Line movement, reverse steam, market inefficiency.</div>
+            </div>
+        </div>
+        <div class="btn-row">
+            <button class="btn-secondary" onclick="goToStep(0)">Back</button>
+            <button class="btn-primary" id="step1Next" onclick="goToStep(2)" style="opacity:0.4;pointer-events:none;">Next</button>
+        </div>
+    </div>
+
+    <!-- STEP 2: PICK YOUR SPORT -->
+    <div class="step" id="step2">
+        <div class="pick-header">
+            <h2>Pick Your Sport</h2>
+            <p>Tap to analyze</p>
+        </div>
+        <div class="sport-grid" id="sportGrid">
+            <div class="sport-card" data-sport="nfl" onclick="selectSport(this)">
+                <div class="sport-icon">&#x1F3C8;</div>
+                <div class="sport-tag">PRIMARY</div>
+                <div class="sport-name">NFL</div>
+                <div class="sport-desc">Spreads, ML, totals, game script, weather, coaching</div>
+            </div>
+            <div class="sport-card" data-sport="cfb" onclick="selectSport(this)">
+                <div class="sport-icon">&#x1F3DF;&#xFE0F;</div>
+                <div class="sport-tag">HIGH VALUE</div>
+                <div class="sport-name">CFB</div>
+                <div class="sport-desc">Hunt dogs, exploit brand bias, early lines</div>
+            </div>
+            <div class="sport-card" data-sport="nba" onclick="selectSport(this)">
+                <div class="sport-icon">&#x1F3C0;</div>
+                <div class="sport-tag">RESTRICTED</div>
+                <div class="sport-name">NBA</div>
+                <div class="sport-desc">ML-first. Spreads only if you love it.</div>
+            </div>
+            <div class="sport-card" data-sport="nhl" onclick="selectSport(this)">
+                <div class="sport-icon">&#x1F3D2;</div>
+                <div class="sport-tag">LIMITED</div>
+                <div class="sport-name">NHL</div>
+                <div class="sport-desc">ML and totals only. No puck lines.</div>
+            </div>
+            <div class="sport-card" data-sport="boxing" onclick="selectSport(this)">
+                <div class="sport-icon">&#x1F94A;</div>
+                <div class="sport-tag">SCRIPT-BASED</div>
+                <div class="sport-name">Boxing / MMA</div>
+                <div class="sport-desc">Style, conditioning, fight IQ</div>
+            </div>
+            <div class="sport-card" data-sport="props" onclick="selectSport(this)">
+                <div class="sport-icon">&#x1F9D1;</div>
+                <div class="sport-tag">ALL SPORTS</div>
+                <div class="sport-name">Player Props</div>
+                <div class="sport-desc">Matchup-driven. Plus-money preferred.</div>
+            </div>
+        </div>
+        <div class="btn-row">
+            <button class="btn-secondary" onclick="goToStep(1)">Back</button>
+            <button class="btn-primary" id="step2Next" onclick="goToStep(3)" style="opacity:0.4;pointer-events:none;">See the Edge</button>
+        </div>
+    </div>
+
+    <!-- STEP 3: SEE THE EDGE -->
+    <div class="step" id="step3">
+        <div class="pick-header">
+            <h2 id="analysisTitle">Edge Analysis</h2>
+            <p>AI-generated breakdown. Demo data.</p>
+        </div>
+        <div class="analysis-section" id="analysisContent">
+            <!-- Filled by JS -->
+        </div>
+        <div class="prompt-buttons">
+            <button class="prompt-btn" onclick="showToast('Coming soon in full version')">&#x1F4AC; &nbsp;What's the play today?</button>
+            <button class="prompt-btn" onclick="showToast('Coming soon in full version')">&#x1F4CA; &nbsp;Run audit on my week</button>
+            <button class="prompt-btn" onclick="showToast('Coming soon in full version')">&#x1F4C9; &nbsp;Show me line movement</button>
+        </div>
+        <div class="btn-row">
+            <button class="btn-secondary" onclick="goToStep(2)">Back</button>
+            <button class="btn-primary" onclick="goToStep(4)">The System</button>
+        </div>
+    </div>
+
+    <!-- STEP 4: THE SYSTEM -->
+    <div class="step" id="step4">
+        <div class="pick-header">
+            <h2>The Edge Finder System</h2>
+        </div>
+        <p class="system-subtitle">How we find value the market misses</p>
+        <div class="system-section">
+            <div class="cap-grid">
+                <div class="cap-item">
+                    <div class="cap-icon">&#x1F50D;</div>
+                    <div class="cap-label">Edge Analysis</div>
+                </div>
+                <div class="cap-item">
+                    <div class="cap-icon">&#x1F4C8;</div>
+                    <div class="cap-label">Line Movement</div>
+                </div>
+                <div class="cap-item">
+                    <div class="cap-icon">&#x26C5;</div>
+                    <div class="cap-label">Weather Impact</div>
+                </div>
+                <div class="cap-item">
+                    <div class="cap-icon">&#x1F9E0;</div>
+                    <div class="cap-label">Gut + Data Alignment</div>
+                </div>
+                <div class="cap-item">
+                    <div class="cap-icon">&#x1F9D1;</div>
+                    <div class="cap-label">Player Props</div>
+                </div>
+                <div class="cap-item">
+                    <div class="cap-icon">&#x1F5C2;&#xFE0F;</div>
+                    <div class="cap-label">Parlay Builder</div>
+                </div>
+                <div class="cap-item">
+                    <div class="cap-icon">&#x1F4C8;</div>
+                    <div class="cap-label">Trend Tracking</div>
+                </div>
+                <div class="cap-item">
+                    <div class="cap-icon">&#x1F4CB;</div>
+                    <div class="cap-label">Honest Loss Review</div>
+                </div>
+                <div class="cap-item">
+                    <div class="cap-icon">&#x1F4B2;</div>
+                    <div class="cap-label">Cash Out Logic</div>
+                </div>
+                <div class="cap-item">
+                    <div class="cap-icon">&#x2705;</div>
+                    <div class="cap-label">Nightly Audit</div>
+                </div>
+            </div>
+            <div class="system-quote">
+                <p>"No edge = no bet. Process over outcome. Discipline over volume. Thesis over tickets."</p>
+            </div>
+        </div>
+        <div class="btn-row">
+            <button class="btn-secondary" onclick="goToStep(3)">Back</button>
+            <button class="btn-primary" onclick="goToStep(0)">Start Over</button>
+        </div>
+    </div>
+
+</div>
+
+<!-- FOOTER -->
+<div class="footer">POWERED BY CAPO AI</div>
+
+<!-- TOAST -->
+<div id="toast" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:rgba(16,185,129,0.9);color:#0D0D1A;padding:10px 24px;border-radius:20px;font-size:0.82rem;font-weight:700;opacity:0;transition:opacity 0.3s ease;pointer-events:none;z-index:999;">Coming soon</div>
+
+<script>
+/* ===== STATE ===== */
+let currentStep = 0;
+let selectedStyle = null;
+let selectedSport = null;
+
+const stepLabels = ['WELCOME','PROFILE','SPORT','ANALYSIS','SYSTEM'];
+
+/* ===== NAVIGATION ===== */
+function goToStep(n) {
+    document.getElementById('step' + currentStep).classList.remove('active');
+    currentStep = n;
+    const next = document.getElementById('step' + n);
+    next.classList.remove('active');
+    void next.offsetWidth; // force reflow for animation
+    next.classList.add('active');
+    updateProgress();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (n === 3) renderAnalysis();
+}
+
+function updateProgress() {
+    const bar = document.getElementById('progressBar');
+    const label = document.getElementById('progressLabel');
+    if (currentStep === 0) {
+        bar.classList.add('hidden');
+        return;
+    }
+    bar.classList.remove('hidden');
+    label.textContent = stepLabels[currentStep] || '';
+
+    document.querySelectorAll('.progress-dot').forEach(dot => {
+        const s = parseInt(dot.dataset.step);
+        dot.classList.remove('active', 'done');
+        if (s === currentStep) dot.classList.add('active');
+        else if (s < currentStep) dot.classList.add('done');
+    });
+    document.querySelectorAll('.progress-line').forEach(line => {
+        const s = parseInt(line.dataset.line);
+        line.classList.toggle('done', s < currentStep);
+    });
+}
+
+/* ===== STYLE SELECTION ===== */
+function selectStyle(el) {
+    document.querySelectorAll('.style-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedStyle = el.dataset.style;
+    const btn = document.getElementById('step1Next');
+    btn.style.opacity = '1';
+    btn.style.pointerEvents = 'auto';
+}
+
+/* ===== SPORT SELECTION ===== */
+function selectSport(el) {
+    document.querySelectorAll('.sport-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedSport = el.dataset.sport;
+    const btn = document.getElementById('step2Next');
+    btn.style.opacity = '1';
+    btn.style.pointerEvents = 'auto';
+}
+
+/* ===== ANALYSIS RENDERING ===== */
+const analyses = {
+    nfl: {
+        title: 'NFL Edge Analysis',
+        cards: [
+            {
+                matchup: 'PACKERS -6.5 vs BEARS',
+                line: 'Opened: -5.5 | Now: -6.5 (public moved it)',
+                wrong: [
+                    'Bears on short week, limited practice reps',
+                    'Packers revenge narrative (lost Week 4 at home)',
+                    'Weather: 15mph wind favors run game, GB top-5 rushing'
+                ],
+                right: [
+                    'Line already moved 1 point toward GB',
+                    'Bears 4-2 ATS as home dog this season'
+                ],
+                grade: 'B-',
+                gradeClass: 'grade-b',
+                rec: 'Half unit if you love it. Line has value but moved.'
+            }
+        ]
+    },
+    cfb: {
+        title: 'CFB Edge Analysis',
+        cards: [
+            {
+                matchup: 'IOWA STATE +7.5 vs TEXAS',
+                line: 'Opened: +6 | Now: +7.5 (sharp money on ISU)',
+                wrong: [
+                    'Texas coming off emotional rivalry win, letdown spot',
+                    'Iowa State 6-1 ATS as road dog 7+ this year',
+                    'Sharp money pushed line 1.5 pts toward ISU'
+                ],
+                right: [
+                    'Texas at home, elite talent gap on paper',
+                    'ISU offense struggles vs top-10 defenses'
+                ],
+                grade: 'B+',
+                gradeClass: 'grade-b',
+                rec: 'One unit. Dog with sharp support in a letdown spot.'
+            }
+        ]
+    },
+    nba: {
+        title: 'NBA Edge Analysis',
+        cards: [
+            {
+                matchup: 'THUNDER -4.5 vs MAVERICKS',
+                line: 'Opened: -5.5 | Now: -4.5 (Luka questionable)',
+                wrong: [
+                    'Luka listed questionable, line only moved 1 point',
+                    'If Luka sits, this should be -7 or more',
+                    'OKC defense top-3 in half-court, Mavs struggle without Luka in half-court'
+                ],
+                right: [
+                    'Mavs have won 3 straight in this building',
+                    'Kyrie historically elevates without Luka'
+                ],
+                grade: 'A-',
+                gradeClass: 'grade-a',
+                rec: 'Wait for Luka ruling. If OUT, hammer OKC -4.5. Injury edge.'
+            }
+        ]
+    },
+    nhl: {
+        title: 'NHL Edge Analysis',
+        cards: [
+            {
+                matchup: 'PANTHERS ML vs RANGERS (-145)',
+                line: 'Opened: -130 | Now: -145 (goalie confirmed)',
+                wrong: [
+                    'Bobrovsky confirmed start, .932 save% last 8 games',
+                    'Rangers on second of back-to-back, tired legs',
+                    'Florida 7-2 in last 9 home games'
+                ],
+                right: [
+                    'Rangers PP clicking at 28% last 10 games',
+                    'Price has moved 15 cents already'
+                ],
+                grade: 'B',
+                gradeClass: 'grade-b',
+                rec: 'ML at -145 is fair. Goalie edge + rest advantage.'
+            }
+        ]
+    },
+    boxing: {
+        title: 'Boxing/MMA Edge Analysis',
+        cards: [
+            {
+                matchup: 'FIGHTER A (-180) vs FIGHTER B (+155)',
+                line: 'Opened: -160 | Now: -180 (public money)',
+                wrong: [
+                    'Fighter B is a southpaw. Fighter A is 1-3 vs southpaws.',
+                    'Fighter A fades in rounds 4-5, cardio questions',
+                    'Fighter B has 71% takedown defense, neutralizes wrestling'
+                ],
+                right: [
+                    'Fighter A has massive reach advantage (6 inches)',
+                    'Fighter B coming off a 14-month layoff'
+                ],
+                grade: 'B+',
+                gradeClass: 'grade-b',
+                rec: 'Fighter B +155 has value. Style matchup favors underdog. Half unit.'
+            }
+        ]
+    },
+    props: {
+        title: 'Player Props Analysis',
+        cards: [
+            {
+                matchup: 'JOKIC OVER 11.5 REBOUNDS',
+                line: 'Line: 11.5 | Juice: -115',
+                wrong: [
+                    'Playing Spurs, worst rebounding team in the league',
+                    'Averages 14.2 rebounds vs bottom-10 rebounding teams',
+                    'Cushion: 2.7 rebounds over the line'
+                ],
+                right: [
+                    'Blowout risk. If Denver leads big, Jokic sits Q4.'
+                ],
+                grade: 'A',
+                gradeClass: 'grade-a',
+                rec: 'THIS IS THE PLAY. Matchup-driven edge with cushion.'
+            }
+        ]
+    }
+};
+
+const passCard = {
+    matchup: 'CHIEFS -450 ML',
+    line: '',
+    redFlag: true,
+    flags: [
+        'Need 82% win rate just to break even at -450',
+        '"They should win" is not an edge',
+        'Any given Sunday. One fumble and you lose 4.5 units.'
+    ],
+    grade: 'F',
+    gradeClass: 'grade-f',
+    rec: 'NO BET. No edge at this price. Move on.'
+};
+
+function renderAnalysis() {
+    const sport = selectedSport || 'nfl';
+    const data = analyses[sport];
+    const container = document.getElementById('analysisContent');
+    document.getElementById('analysisTitle').textContent = data.title;
+
+    let html = '';
+
+    data.cards.forEach(card => {
+        html += `
+        <div class="analysis-card">
+            <div class="analysis-matchup">${card.matchup}</div>
+            <div class="analysis-line">${card.line}</div>
+            <div class="analysis-heading why-wrong">WHY MARKET MIGHT BE WRONG</div>
+            ${card.wrong.map(b => `<div class="analysis-bullet">${b}</div>`).join('')}
+            <div class="analysis-heading why-right">WHY MARKET MIGHT BE RIGHT</div>
+            ${card.right.map(b => `<div class="analysis-bullet">${b}</div>`).join('')}
+            <div class="analysis-footer">
+                <div class="grade-badge ${card.gradeClass}">${card.grade}</div>
+                <div class="analysis-rec">${card.rec}</div>
+            </div>
+        </div>`;
+    });
+
+    // Pass card
+    html += `
+    <div class="analysis-card pass-card">
+        <div class="analysis-matchup">${passCard.matchup}</div>
+        <div class="analysis-heading red-flag">RED FLAG &#x2014; STOP</div>
+        ${passCard.flags.map(b => `<div class="analysis-bullet">${b}</div>`).join('')}
+        <div class="analysis-footer">
+            <div class="grade-badge ${passCard.gradeClass}">${passCard.grade}</div>
+            <div class="analysis-rec">${passCard.rec}</div>
+        </div>
+    </div>`;
+
+    container.innerHTML = html;
+}
+
+/* ===== TOAST ===== */
+function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.style.opacity = '1';
+    setTimeout(() => { t.style.opacity = '0'; }, 2000);
+}
+
+/* ===== INIT ===== */
+updateProgress();
+</script>
+</body>
+</html>
